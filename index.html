@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maze Runner Game</title>
+  <title>Maze Runner</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <style>
     body {
       margin: 0;
-      padding: 0;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -17,16 +16,30 @@
     canvas {
       display: block;
     }
+    .portal {
+      width: 30px;
+      height: 30px;
+      background: radial-gradient(circle, cyan, blue);
+      border-radius: 50%;
+      animation: spin 2s linear infinite;
+    }
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
   </style>
 </head>
 <body>
 <script>
-  // Phaser Game Configuration
   const config = {
     type: Phaser.AUTO,
     width: 600,
     height: 600,
-    backgroundColor: '#000000',
+    backgroundColor: '#000',
     physics: {
       default: 'arcade',
       arcade: {
@@ -43,72 +56,122 @@
   const game = new Phaser.Game(config);
 
   let player;
-  let goal;
+  let portal;
+  let cursors;
   const gridSize = 30;
-  const maze = [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
-    [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-    [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  ];
+  let maze;
+
+  function generateMaze(rows, cols) {
+    const newMaze = Array.from({ length: rows }, () => Array(cols).fill(1));
+
+    function carvePath(x, y) {
+      const directions = [
+        [0, -1], // Up
+        [1, 0], // Right
+        [0, 1], // Down
+        [-1, 0] // Left
+      ];
+
+      shuffleArray(directions);
+
+      directions.forEach(([dx, dy]) => {
+        const nx = x + dx * 2;
+        const ny = y + dy * 2;
+
+        if (nx > 0 && ny > 0 && nx < rows - 1 && ny < cols - 1 && newMaze[ny][nx] === 1) {
+          newMaze[ny][nx] = 0;
+          newMaze[y + dy][x + dx] = 0;
+          carvePath(nx, ny);
+        }
+      });
+    }
+
+    carvePath(1, 1);
+
+    newMaze[1][1] = 0; // Start point
+    newMaze[rows - 2][cols - 2] = 0; // End point
+    return newMaze;
+  }
 
   function preload() {
     // Load assets (if needed)
+    this.load.image('player', 'https://cdn.pixabay.com/photo/2016/04/24/18/03/child-1342370_1280.png'); // Player image
   }
 
   function create() {
-    // Draw the maze
+    // Generate a maze
+    maze = generateMaze(19, 19);
+
+    // Draw maze
+    drawMaze(this);
+
+    // Add player
+    player = this.physics.add.sprite(gridSize * 1.5, gridSize * 1.5, 'player').setScale(0.05);
+    player.setCollideWorldBounds(true);
+
+    // Add portal
+    portal = this.add.dom(gridSize * 18.5, gridSize * 17.5, 'div', 'position: absolute', `<div class="portal"></div>`);
+    this.physics.add.existing(portal, true);
+
+    // Player and wall collision
+    this.physics.add.collider(player, walls);
+
+    // Player and portal overlap
+    this.physics.add.overlap(player, portal, reachPortal, null, this);
+
+    // Keyboard controls
+    cursors = this.input.keyboard.createCursorKeys();
+  }
+
+  function drawMaze(scene) {
+    walls = scene.physics.add.staticGroup();
+
     for (let row = 0; row < maze.length; row++) {
       for (let col = 0; col < maze[row].length; col++) {
         if (maze[row][col] === 1) {
-          this.add.rectangle(col * gridSize + gridSize / 2, row * gridSize + gridSize / 2, gridSize, gridSize, 0x808080);
+          walls.create(col * gridSize + gridSize / 2, row * gridSize + gridSize / 2, '').setSize(gridSize, gridSize).setOrigin(0.5).setImmovable(true).setTint(0x808080);
+          scene.add.rectangle(col * gridSize + gridSize / 2, row * gridSize + gridSize / 2, gridSize, gridSize, 0x808080);
         }
       }
     }
+  }
 
-    // Add the player
-    player = this.add.rectangle(gridSize * 1.5, gridSize * 1.5, gridSize - 10, gridSize - 10, 0x0000ff);
-    this.physics.add.existing(player);
-    player.body.setCollideWorldBounds(true);
+  function reachPortal() {
+    alert('You Win! The maze will change!');
+    // Move player to start
+    player.setPosition(gridSize * 1.5, gridSize * 1.5);
 
-    // Add the goal
-    goal = this.add.rectangle(gridSize * 18.5, gridSize * 7.5, gridSize - 10, gridSize - 10, 0x00ff00);
-    this.physics.add.existing(goal);
+    // Generate new maze
+    maze = generateMaze(19, 19);
 
-    // Add collision checks with walls
-    this.physics.world.setBounds(0, 0, config.width, config.height);
-    player.body.setBounce(0);
+    // Clear and redraw maze
+    walls.clear(true, true);
+    drawMaze(this);
   }
 
   function update() {
-    // Player movement
-    const cursors = this.input.keyboard.createCursorKeys();
+    // Reset velocity
+    player.setVelocity(0);
 
+    // Player movement
     if (cursors.left.isDown) {
-      player.body.setVelocityX(-150);
+      player.setVelocityX(-150);
     } else if (cursors.right.isDown) {
-      player.body.setVelocityX(150);
-    } else {
-      player.body.setVelocityX(0);
+      player.setVelocityX(150);
     }
 
     if (cursors.up.isDown) {
-      player.body.setVelocityY(-150);
+      player.setVelocityY(-150);
     } else if (cursors.down.isDown) {
-      player.body.setVelocityY(150);
-    } else {
-      player.body.setVelocityY(0);
+      player.setVelocityY(150);
     }
+  }
 
-    // Check if the player reaches the goal
-    if (Phaser.Geom.Intersects.RectangleToRectangle(player.getBounds(), goal.getBounds())) {
-      alert('You Win!');
-      this.scene.restart(); // Restart the scene after winning
+  // Utility: Shuffle array
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
     }
   }
 </script>
