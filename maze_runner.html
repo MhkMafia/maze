@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maze Runner Game</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: black;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<script>
+  // Phaser Game Configuration
+  const config = {
+    type: Phaser.AUTO,
+    width: 600,
+    height: 600,
+    backgroundColor: '#000000',
+    physics: {
+      default: 'arcade',
+      arcade: {
+        debug: false
+      }
+    },
+    scene: {
+      preload: preload,
+      create: create,
+      update: update
+    }
+  };
+
+  const game = new Phaser.Game(config);
+
+  let player;
+  let goal;
+  const gridSize = 30;
+  const maze = [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+    [1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  ];
+
+  function preload() {
+    // Load assets (if needed)
+  }
+
+  function create() {
+    // Draw the maze
+    for (let row = 0; row < maze.length; row++) {
+      for (let col = 0; col < maze[row].length; col++) {
+        if (maze[row][col] === 1) {
+          this.add.rectangle(col * gridSize + gridSize / 2, row * gridSize + gridSize / 2, gridSize, gridSize, 0x808080);
+        }
+      }
+    }
+
+    // Add the player
+    player = this.add.rectangle(gridSize * 1.5, gridSize * 1.5, gridSize - 10, gridSize - 10, 0x0000ff);
+    this.physics.add.existing(player);
+    player.body.setCollideWorldBounds(true);
+
+    // Add the goal
+    goal = this.add.rectangle(gridSize * 18.5, gridSize * 7.5, gridSize - 10, gridSize - 10, 0x00ff00);
+    this.physics.add.existing(goal);
+
+    // Add collision checks with walls
+    this.physics.world.setBounds(0, 0, config.width, config.height);
+    player.body.setBounce(0);
+  }
+
+  function update() {
+    // Player movement
+    const cursors = this.input.keyboard.createCursorKeys();
+
+    if (cursors.left.isDown) {
+      player.body.setVelocityX(-150);
+    } else if (cursors.right.isDown) {
+      player.body.setVelocityX(150);
+    } else {
+      player.body.setVelocityX(0);
+    }
+
+    if (cursors.up.isDown) {
+      player.body.setVelocityY(-150);
+    } else if (cursors.down.isDown) {
+      player.body.setVelocityY(150);
+    } else {
+      player.body.setVelocityY(0);
+    }
+
+    // Check if the player reaches the goal
+    if (Phaser.Geom.Intersects.RectangleToRectangle(player.getBounds(), goal.getBounds())) {
+      alert('You Win!');
+      this.scene.restart(); // Restart the scene after winning
+    }
+  }
+</script>
+</body>
+</html>
